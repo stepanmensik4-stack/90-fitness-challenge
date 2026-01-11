@@ -237,7 +237,111 @@ function update(){
 }
 
 update();
-</script>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  onSnapshot,
+  setDoc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+/* FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyApNHNutAlF4DpNu4JSKir00m111C4FyxE",
+  authDomain: "fitness-challenge-b82a9-891c9.firebaseapp.com",
+  projectId: "fitness-challenge-b82a9-891c9",
+  storageBucket: "fitness-challenge-b82a9-891c9.firebasestorage.app",
+  messagingSenderId: "1059207615270",
+  appId: "1:1059207615270:web:a6832148194bb4a883a7e7"
+};
+
+/* INIT */
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const ref = doc(db, "challenge", "shared");
+
+/* CONSTANTS */
+const MAX_POINTS = 500;
+const START_DATE = new Date("2026-01-11T00:00:00");
+const LEVEL_COLORS = [
+  "#6b6b6b","#4da6ff","#3fa9f5","#00cfff","#00ffc3","#00ff9d",
+  "#00ff6a","#7dff00","#baff00","#ffd700","#ffbf00","#ff9f00",
+  "#ff7a00","#ff4d4d","#ff2f92","#d94dff","#b84dff","#8b00ff"
+];
+
+/* STATE */
+let data = null;
+let active = "stepan";
+
+/* HELPERS */
+const levelFromPoints = p => Math.floor(p / 25) + 1;
+const colorFromLevel = l => LEVEL_COLORS[Math.min(l - 1, LEVEL_COLORS.length - 1)];
+const statusFromPoints = p =>
+  p >= 468 ? "David Goggins" :
+  p >= 313 ? "Limitless" :
+  p >= 154 ? "BJP" : "—";
+
+const getDay = () =>
+  Math.min(
+    Math.max(Math.floor((Date.now() - START_DATE) / 86400000) + 1, 1),
+    90
+  );
+
+/* INIT DATA (ONLY ONCE) */
+await setDoc(ref, {
+  stepan: { points: 0, statusShown: [] },
+  suni: { points: 0, statusShown: [] }
+}, { merge: true });
+
+/* REALTIME SYNC */
+onSnapshot(ref, snap => {
+  data = snap.data();
+  updateUI();
+});
+
+/* UI UPDATE */
+function updateUI() {
+  if (!data) return;
+  const p = data[active];
+
+  points.innerText = p.points;
+  level.innerText = levelFromPoints(p.points);
+  status.innerText = statusFromPoints(p.points);
+  dayCounter.innerText = `DEN ${getDay()} / 90`;
+
+  updateTimeline();
+}
+
+/* TIMELINE */
+function updateTimeline() {
+  const w = timeline.offsetWidth - 46;
+  ["stepan", "suni"].forEach(n => {
+    const p = data[n];
+    const lvl = levelFromPoints(p.points);
+    const el = document.getElementById("line" + n[0].toUpperCase() + n.slice(1));
+    el.style.left = Math.min(p.points / MAX_POINTS, 1) * w + "px";
+    el.style.border = "3px solid " + colorFromLevel(lvl);
+    document.getElementById("name-" + n).style.color = colorFromLevel(lvl);
+  });
+}
+
+/* CONTROLS */
+window.setActive = n => {
+  active = n;
+  document.querySelectorAll(".player").forEach(p => p.classList.remove("active"));
+  document.getElementById("p-" + n).classList.add("active");
+  updateUI();
+};
+
+window.addPoints = async v => {
+  const p = data[active];
+  await updateDoc(ref, {
+    [`${active}.points`]: Math.max(0, p.points + v)
+  });
+};
+</script>
 </body>
 </html>
