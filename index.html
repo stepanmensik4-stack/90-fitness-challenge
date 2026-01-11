@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>90 Fitness Challenge</title>
+
+<style>
+body {
+  margin: 0;
+  background: #0f1117;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+h1 { margin: 20px 0 40px; }
+
+/* TIMELINE */
+.timeline {
+  position: relative;
+  width: 90%;
+  height: 6px;
+  background: #2a2f3a;
+  margin: 0 auto 60px;
+  border-radius: 3px;
+}
+.timeline-avatar {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #0f1117;
+  object-fit: cover;
+  transition: left 0.25s ease, border-color 0.25s ease;
+}
+.avatar-stepan { top: -60px; }
+.avatar-suni { top: 20px; }
+
+/* PLAYERS */
+.players {
+  display: flex;
+  justify-content: center;
+  gap: 120px;
+  margin-bottom: 40px;
+}
+.player { cursor: pointer; }
+.player img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 4px solid #555;
+}
+.player.active img {
+  box-shadow: 0 0 30px currentColor;
+}
+.player-name {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* BUTTONS */
+.buttons button {
+  margin: 6px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 2px solid #00ffc3;
+  background: transparent;
+  color: #00ffc3;
+  cursor: pointer;
+}
+.buttons button:hover {
+  background: #00ffc3;
+  color: #0f1117;
+}
+
+/* STATS */
+.stats { font-size: 18px; margin-bottom: 30px; }
+.day-counter { font-size: 42px; font-weight: bold; margin-bottom: 40px; }
+
+/* POPUP */
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: #111;
+  padding: 30px 50px;
+  border-radius: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 999;
+}
+.popup.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+</style>
+</head>
+
+<body>
+
+<h1>🔥 90 Fitness Challenge</h1>
+
+<div class="timeline" id="timeline">
+  <img src="avatars/stepan.png" id="lineStepan" class="timeline-avatar avatar-stepan">
+  <img src="avatars/suni.png" id="lineSuni" class="timeline-avatar avatar-suni">
+</div>
+
+<div class="players">
+  <div class="player active" id="p-stepan" onclick="setActive('stepan')">
+    <img src="avatars/stepan.png">
+    <div class="player-name" id="name-stepan">Štěpán</div>
+  </div>
+
+  <div class="player" id="p-suni" onclick="setActive('suni')">
+    <img src="avatars/suni.png">
+    <div class="player-name" id="name-suni">Suni</div>
+  </div>
+</div>
+
+<div class="buttons">
+  <button onclick="addPoints(5)">+5 Strava</button>
+  <button onclick="addPoints(3)">+3 Trénink</button>
+  <button onclick="addPoints(2)">+2 Self-education</button>
+  <button onclick="addPoints(-1)">−1 Korekce</button>
+</div>
+
+<div class="stats">
+  Body: <span id="points">0</span><br>
+  Level: <span id="level">1</span><br>
+  Status: <span id="status">—</span>
+</div>
+
+<div class="day-counter" id="dayCounter">DEN 1 / 90</div>
+
+<div class="popup" id="popup">
+  <h2 id="popupTitle"></h2>
+  <p id="popupText"></p>
+</div>
+
+<script>
+/* CONSTANTS */
+const MAX_POINTS = 500;
+const START_DATE = new Date("2026-01-11T00:00:00");
+
+const LEVEL_COLORS = [
+  "#6b6b6b","#4da6ff","#3fa9f5","#00cfff","#00ffc3","#00ff9d",
+  "#00ff6a","#7dff00","#baff00","#ffd700","#ffbf00","#ff9f00",
+  "#ff7a00","#ff4d4d","#ff2f92","#d94dff","#b84dff","#8b00ff"
+];
+
+/* DATA */
+let data = JSON.parse(localStorage.getItem("fitnessXP")) || {
+  active: "stepan",
+  stepan: { points: 0, statusShown: [] },
+  suni: { points: 0, statusShown: [] }
+};
+
+["stepan","suni"].forEach(n => {
+  if (!data[n].statusShown) data[n].statusShown = [];
+});
+
+/* HELPERS */
+function save(){ localStorage.setItem("fitnessXP", JSON.stringify(data)); }
+function getDay(){
+  const d=Math.floor((new Date()-START_DATE)/(1000*60*60*24))+1;
+  return Math.min(Math.max(d,1),90);
+}
+function levelFromPoints(p){ return Math.floor(p/25)+1; }
+function colorFromLevel(l){ return LEVEL_COLORS[Math.min(l-1,LEVEL_COLORS.length-1)]; }
+function statusFromPoints(p){
+  if(p>=468) return "David Goggins";
+  if(p>=313) return "Limitless";
+  if(p>=154) return "BJP";
+  return null;
+}
+
+/* POPUP */
+function showPopup(t,txt,col){
+  popupTitle.innerText=t;
+  popupText.innerText=txt;
+  popup.style.border="3px solid "+col;
+  popup.classList.add("show");
+  setTimeout(()=>popup.classList.remove("show"),1800);
+}
+
+/* ACTIONS */
+function setActive(n){
+  data.active=n;
+  document.getElementById("p-stepan").classList.remove("active");
+  document.getElementById("p-suni").classList.remove("active");
+  document.getElementById("p-"+n).classList.add("active");
+  update(); save();
+}
+
+function addPoints(v){
+  const p=data[data.active];
+  const prevLvl=levelFromPoints(p.points);
+  p.points=Math.max(0,p.points+v);
+
+  const lvl=levelFromPoints(p.points);
+  if(lvl>prevLvl){
+    showPopup("LEVEL UP","Level "+lvl,colorFromLevel(lvl));
+  }
+
+  const st=statusFromPoints(p.points);
+  if(st && !p.statusShown.includes(st)){
+    p.statusShown.push(st);
+    showPopup("NEW STATUS",st,"#ffd700");
+  }
+
+  update(); save();
+}
+
+/* UPDATE */
+function updateTimeline(){
+  const w=timeline.offsetWidth-46;
+  ["stepan","suni"].forEach(n=>{
+    const p=data[n];
+    const lvl=levelFromPoints(p.points);
+    const el=document.getElementById("line"+n[0].toUpperCase()+n.slice(1));
+    el.style.left=Math.min(p.points/MAX_POINTS,1)*w+"px";
+    el.style.border="3px solid "+colorFromLevel(lvl);
+    document.getElementById("name-"+n).style.color=colorFromLevel(lvl);
+  });
+}
+
+function update(){
+  const p=data[data.active];
+  points.innerText=p.points;
+  level.innerText=levelFromPoints(p.points);
+  status.innerText=statusFromPoints(p.points)||"—";
+  dayCounter.innerText="DEN "+getDay()+" / 90";
+  updateTimeline();
+}
+
+update();
+</script>
+
+</body>
+</html>
